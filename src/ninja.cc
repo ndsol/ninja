@@ -299,8 +299,12 @@ Node* NinjaMain::CollectTarget(const char* cpath, string* err) {
     }
     return node;
   } else {
+    // About to abort, so corrupt state_ to get a valid Node* out of it.
+    node = state_.GetNode(path, &state_.bindings_, slash_bits);
     *err =
-        "unknown target '" + Node::PathDecanonicalized(path, slash_bits) + "'";
+        "unknown target '" + node->PathDecanonicalized(&state_.bindings_) + "'";
+    state_.paths_.erase(node->path());
+
     if (path == "clean") {
       *err += ", did you mean 'ninja -t clean'?";
     } else if (path == "help") {
@@ -802,14 +806,10 @@ int NinjaMain::ToolCompilationDatabase(const Options* options, int argc,
   argc -= optind;
 
   bool first = true;
-  vector<char> cwd;
-
-  do {
-    cwd.resize(cwd.size() + 1024);
-    errno = 0;
-  } while (!getcwd(&cwd[0], cwd.size()) && errno == ERANGE);
-  if (errno != 0 && errno != ERANGE) {
-    Error("cannot determine working directory: %s", strerror(errno));
+  string cwd;
+  string err;
+  if (disk_interface_.Getcwd(&cwd, &err) != RealDiskInterface::Okay) {
+    Error("cannot determine working directory: %s", err.c_str());
     return 1;
   }
 
@@ -822,7 +822,7 @@ int NinjaMain::ToolCompilationDatabase(const Options* options, int argc,
       if (!first) {
         putchar(',');
       }
-      printCompdb(&cwd[0], *e, eval_mode);
+      printCompdb(cwd.c_str(), *e, eval_mode);
       first = false;
     } else {
       for (int i = 0; i != argc; ++i) {
@@ -830,7 +830,7 @@ int NinjaMain::ToolCompilationDatabase(const Options* options, int argc,
           if (!first) {
             putchar(',');
           }
-          printCompdb(&cwd[0], *e, eval_mode);
+          printCompdb(cwd.c_str(), *e, eval_mode);
           first = false;
         }
       }
