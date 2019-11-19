@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 #
 # Copyright 2001 Google Inc. All Rights Reserved.
 #
@@ -274,6 +274,8 @@ objext = '.o'
 if platform.is_msvc():
     CXX = 'cl'
     objext = '.obj'
+if 'CC_WRAPPER' in os.environ:
+  CXX = '%s %s' % (os.environ.get('CC_WRAPPER'), CXX)
 
 def src(filename):
     return os.path.join('$root', 'src', filename)
@@ -356,7 +358,7 @@ else:
     except:
         pass
     if platform.is_mingw():
-        cflags += ['-D_WIN32_WINNT=0x0601']
+        cflags += ['-D_WIN32_WINNT=0x0501']
     ldflags = ['-L$builddir']
     if platform.uses_usr_local():
         cflags.append('-I/usr/local/include')
@@ -484,7 +486,7 @@ if has_re2c():
     # Generate the .cc files in the source directory so we can check them in.
     n.build(src('depfile_parser.cc'), 're2c', src('depfile_parser.in.cc'))
     n.build(src('lexer.cc'), 're2c', src('lexer.in.cc'))
-else:
+elif False:
     print("warning: A compatible version of re2c (>= 0.11.3) was not found; "
            "changes to src/*.in.cc will not affect your build.")
 n.newline()
@@ -649,7 +651,7 @@ n.rule('doxygen_mainpage',
        command='$doxygen_mainpage_generator $in > $out',
        description='DOXYGEN_MAINPAGE $out')
 mainpage = n.build(built('doxygen_mainpage'), 'doxygen_mainpage',
-                   ['README', 'COPYING'],
+                   ['README.md', 'COPYING'],
                    implicit=['$doxygen_mainpage_generator'])
 n.build('doxygen', 'doxygen', doc('doxygen.config'),
         implicit=mainpage)

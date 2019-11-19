@@ -1,36 +1,109 @@
-matrix:
-  include:
-    - os: linux
-      dist: precise
-      compiler: gcc
-    - os: linux
-      dist: precise
-      compiler: clang
-    - os: linux
-      dist: trusty
-      compiler: gcc
-    - os: linux
-      dist: trusty
-      compiler: clang
-    - os: linux
-      dist: xenial
-      compiler: gcc
-    - os: linux
-      dist: xenial
-      compiler: clang
-    - os: osx
-      osx_image: xcode10
-    - os: osx
-      osx_image: xcode10.1
+dist: xenial
 sudo: false
 language: cpp
+cache: ccache
+
+matrix:
+  include:
+    - os: osx
+      osx_image: xcode10.2
+      env:
+        - MATRIX_EVAL="HOMEBREW_NO_AUTO_UPDATE=1 brew install ccache re2c && export PATH=\"/usr/local/opt/ccache/libexec:\$PATH\"; echo PATH=\$PATH"
+
+    - os: linux
+      addons:
+        apt:
+          sources:
+          - ubuntu-toolchain-r-test
+          packages:
+          - gcc-4.9
+          - g++-4.9
+      env:
+        - MATRIX_EVAL="export CC=gcc-4.9; export CXX=g++-4.9"
+    - os: linux
+      addons:
+        apt:
+          sources:
+          - ubuntu-toolchain-r-test
+          packages:
+          - gcc-5
+          - g++-5
+      env:
+        - MATRIX_EVAL="export CC=gcc-5; export CXX=g++-5"
+    - os: linux
+      addons:
+        apt:
+          sources:
+          - ubuntu-toolchain-r-test
+          packages:
+          - gcc-7
+          - g++-7
+      env:
+        - MATRIX_EVAL="export CC=gcc-7; export CXX=g++-7"
+    - os: linux
+      addons:
+        apt:
+          sources:
+          - ubuntu-toolchain-r-test
+          packages:
+          - gcc-8
+          - g++-8
+      env:
+        - MATRIX_EVAL="export CC=gcc-8; export CXX=g++-8"
+    - os: linux
+      addons:
+        apt:
+          sources:
+          - llvm-toolchain-xenial-3.9
+          packages:
+          - clang-3.9
+      env:
+        - MATRIX_EVAL="export CC=clang-3.9; export CXX=clang++-3.9"
+    - os: linux
+      addons:
+        apt:
+          sources:
+          - llvm-toolchain-xenial-4.0
+          packages:
+          - clang-4.0
+      env:
+        - MATRIX_EVAL="export CC=clang-4.0; export CXX=clang++-4.0"
+    - os: linux
+      addons:
+        apt:
+          sources:
+          - llvm-toolchain-xenial-5.0
+          packages:
+          - clang-5.0
+      env:
+        - MATRIX_EVAL="export CC=clang-5.0; export CXX=clang++-5.0"
+    - os: linux
+      addons:
+        apt:
+          sources:
+          - llvm-toolchain-xenial-6.0
+          packages:
+          - clang-6.0
+      env:
+        - MATRIX_EVAL="export CC=clang-6.0; export CXX=clang++-6.0"
+
 before_install:
-  - if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then brew install re2c             ; fi
-  - if [[ "$TRAVIS_OS_NAME" == "windows" ]]; then choco install re2c python ; fi
+- eval "${MATRIX_EVAL}"
+- $CC -v
+- $CXX -v
+- CC_WRAPPER=ccache
+# travis xenial has ccache-3.2.4: gcc -C is used to workaround a false
+# -Wimplicit-fallthrough warning. ccache 3.4 has --keep_comments_cpp, use that
+- if [ "$(uname)" == "Linux" -a "${CC/gcc/}" != "$CC" ]; then export CFLAGS="${CFLAGS} -C"; export CXXFLAGS="${CXXFLAGS} -C"; fi
+- echo "CFLAGS=$CFLAGS"
+- echo "CXXFLAGS=$CXXFLAGS"
+- ccache --zero-stats
+
 script:
   - ./misc/ci.py
-  - python3 configure.py --bootstrap
+  - ./configure.py --bootstrap
   - ./ninja all
   - ./ninja_test --gtest_filter=-SubprocessTest.SetWithLots
   - ./misc/ninja_syntax_test.py
   - ./misc/output_test.py
+  - ccache --show-stats
